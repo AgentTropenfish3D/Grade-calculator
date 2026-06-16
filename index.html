@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Notenrechner</title>
+  <style>
+    :root{
+      --bg:#f6f7fb;
+      --card:#fff;
+      --muted:#6b7280;
+      --text:#111;
+      --border:#e6e6f0;
+      --border-sub:#f0f0f0;
+      --hr:#eee;
+      --primary:#111;
+      --primary-invert:#fff;
+    }
+    
+    /* Dark Mode Variablen */
+    [data-theme="dark"] {
+      --bg:#1e293b;
+      --card:#0f172a;
+      --muted:#94a3b8;
+      --text:#f8fafc;
+      --border:#334155;
+      --border-sub:#1e293b;
+      --hr:#334155;
+      --primary:#f8fafc;
+      --primary-invert:#0f172a;
+    }
+
+    body{font-family:Inter,Segoe UI,Roboto,Arial;margin:0;background:var(--bg);color:var(--text);transition:background 0.2s, color 0.2s}
+    .app{max-width:980px;margin:28px auto;padding:20px;display:flex;flex-direction:column;min-height:90vh;position:relative}
+    .main-content{flex:1}
+    h1{margin:0 0 12px;font-size:20px}
+    .top{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+    
+    .btn {
+      background:var(--primary);
+      color:var(--primary-invert);
+      padding:8px 12px;
+      border-radius:8px;
+      border:none;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:6px;
+      font-family:Inter,Segoe UI,Roboto,Arial;
+      font-size:14px;
+      font-weight:600;
+      box-sizing:border-box;
+      min-height:38px;
+    }
+    
+    .btn.ghost{background:transparent;color:var(--text);border:1px solid #ddd}
+    [data-theme="dark"] .btn.ghost { border-color:var(--border); color:var(--text); }
+    
+    .btn.icon-only {
+      padding:8px;
+      width:38px;
+    }
+    
+    .layout{display:grid;grid-template-columns:320px 1fr;gap:18px;margin-top:18px}
+    .panel{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 1px 4px rgba(16,24,40,.06);border:1px solid var(--border-sub)}
+    
+    .subject-list{display:flex;flex-direction:column;gap:10px}
+    .subject{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px;border-radius:10px;cursor:pointer;background:var(--card);border:1px solid var(--border-sub)}
+    .subject-info{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+    .dot{width:18px;height:18px;border-radius:6px;flex-shrink:0}
+    .meta{display:flex;flex-direction:column;min-width:0}
+    .meta .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .meta .avg{font-size:13px;color:var(--muted)}
+    
+    .controls{display:flex;gap:6px;align-items:center;flex-shrink:0}
+    .icon-btn{background:transparent;border:0;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;color:var(--text);opacity:0.8}
+    .icon-btn:hover{opacity:1}
+    
+    .btn svg, .icon-btn svg {width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+    .card-title{font-weight:700;margin-bottom:8px}
+    .field{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+    label{min-width:160px;color:var(--muted);font-size:14px}
+    input[type="text"],select,input[type="number"]{padding:8px;border-radius:8px;border:1px solid var(--border);min-width:120px;background:var(--card);color:var(--text)}
+    .small{font-size:13px;color:var(--muted)}
+
+    .grade-rows{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+    .grade-row{display:flex;gap:8px;align-items:center;transition:opacity 0.2s}
+    
+    .grade-row.disabled { opacity: 0.35; }
+    .grade-row.disabled input, .grade-row.disabled select { background: var(--bg); color: var(--muted); }
+    
+    .grade-row input {width:100px; box-sizing:border-box;}
+    .grade-row select{width:120px}
+
+    .empty{color:var(--muted);padding:16px;border-radius:8px;text-align:center}
+    .inactive-count { font-size: 13px; color: var(--muted); margin-left: 6px; font-weight: normal; }
+
+    /* Untere Leiste */
+    .bottom-controls{margin-top:32px;display:flex;gap:8px;justify-content:flex-end;align-items:center}
+
+    /* Modals */
+    .modal-back{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:flex;align-items:center;justify-content:center;z-index:100}
+    .modal{background:var(--card);color:var(--text);padding:16px;border-radius:12px;width:420px;box-shadow:0 10px 25px rgba(0,0,0,0.2);border:1px solid var(--border)}
+    footer{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{border:1px solid var(--border);padding:8px;text-align:left}
+    th{background:var(--bg)}
+
+    /* In-App Toast Benachrichtigungen */
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--card);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border: 1px solid var(--border);
+      font-size: 14px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width:720px){
+      .layout{grid-template-columns:1fr} 
+      .top{flex-direction:column;align-items:flex-start}
+      .controls-top{width:100%;display:flex;flex-wrap:wrap;gap:8px}
+      .bottom-controls{justify-content:flex-end;margin-top:24px;flex-wrap:wrap}
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div id="toast-container" class="toast-container"></div>
+
+    <div class="main-content">
+      <div class="top">
+        <h1>Notenrechner</h1>
+        <div class="controls-top" style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn" id="btn-add">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            Fach hinzufügen
+          </button>
+          <button class="btn ghost" id="btn-overall">
+            <svg viewBox="0 0 24 24"><path d="M12 20v-6M6 20V10M18 20V4"></path></svg>
+            Gesamtnotendurchschnitt
+          </button>
+        </div>
+      </div>
+
+      <div class="layout">
+        <div class="panel" id="left">
+          <div class="card-title">Fächer</div>
+          <div id="subjects" class="subject-list"></div>
+          <div id="empty-msg" class="empty" style="display:none">Noch keine Fächer. Klicke auf "Fach hinzufügen".</div>
+        </div>
+
+        <div class="panel" id="right">
+          <div id="welcome">
+            <div class="card-title">Wähle ein Fach</div>
+          </div>
+
+          <div id="subject-view" style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div id="sub-name" style="font-size:18px;font-weight:700"></div>
+                <div id="sub-avg" class="small" style="margin-top:4px"></div>
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="btn ghost" id="btn-edit-sub">
+                  <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                  Bearbeiten
+                </button>
+                <button class="btn" id="btn-back">
+                  <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                  Zurück
+                </button>
+              </div>
+            </div>
+
+            <hr style="margin:12px 0; border:none; border-top:1px solid var(--hr)" />
+
+            <div>
+              <div class="card-title">Noten</div>
+              <div class="grade-rows" id="grade-rows"></div>
+              <div style="margin-top:10px;display:flex;gap:8px">
+                <button class="btn ghost" id="btn-add-grade">
+                  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                  Note hinzufügen
+                </button>
+              </div>
+              <div style="margin-top:12px;font-weight:700">
+                Durchschnitt: <span id="calc-result">–</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="overall-view" style="display:none">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div class="card-title">Gesamtnotendurchschnitt</div>
+              <div><button class="btn" id="btn-overall-back">
+                <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                Zurück
+              </button></div>
+            </div>
+            <table id="overall-table">
+              <thead><tr><th>Fach</th><th>Durchschnitt</th></tr></thead>
+              <tbody></tbody>
+            </table>
+            <div style="margin-top:12px;font-weight:700">Gesamtdurchschnitt: <span id="overall-avg">–</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bottom-controls">
+      <button class="btn ghost icon-only" id="btn-settings" title="Einstellungen">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+      </button>
+
+      <button class="btn ghost icon-only" id="btn-recalculate" title="Alle Noten neu berechnen">
+        <svg viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="8" y1="6" x2="16" y2="6"></line><line x1="16" y1="14" x2="16" y2="18"></line><line x1="16" y1="10" x2="16" y2="10"></line><line x1="12" y1="10" x2="12" y2="10"></line><line x1="8" y1="10" x2="8" y2="10"></line><line x1="12" y1="14" x2="12" y2="14"></line><line x1="8" y1="14" x2="8" y2="14"></line><line x1="12" y1="18" x2="12" y2="18"></line><line x1="8" y1="18" x2="8" y2="18"></line></svg>
+      </button>
+
+      <button class="btn ghost" id="btn-export">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export
+      </button>
+      
+      <button class="btn ghost" id="btn-trigger-import">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        Import
+      </button>
+      <input type="file" id="btn-import" accept=".txt" style="display:none"/>
+    </div>
+  </div>
+
+  <template id="modal-tpl">
+    <div class="modal-back">
+      <div class="modal">
+        <div class="card-title" id="modal-title">Titel</div>
+        <div style="margin-top:8px">
+          <div class="field"><label style="min-width:90px">Name</label><input id="modal-name" /></div>
+          <div class="field"><label style="min-width:90px">Farbe</label><input id="modal-color" type="color" value="#4f46e5"/></div>
+        </div>
+        <footer>
+          <button class="btn ghost" id="modal-cancel">Abbrechen</button>
+          <button class="btn" id="modal-save">Speichern</button>
+        </footer>
+      </div>
+    </div>
+  </template>
+
+  <template id="settings-modal-tpl">
+    <div class="modal-back">
+      <div class="modal">
+        <div class="card-title">Einstellungen</div>
+        <div style="margin-top:12px">
+          <div class="field">
+            <label>Design-Modus:</label>
+            <select id="setting-theme">
+              <option value="light">Light Mode</option>
+              <option value="dark">Dark Mode</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Temporäre Noten (Auge):</label>
+            <select id="setting-temp-grades">
+              <option value="true">Aktiviert</option>
+              <option value="false">Deaktiviert</option>
+            </select>
+          </div>
+        </div>
+        <footer>
+          <button class="btn" id="settings-save">Schließen</button>
+        </footer>
+      </div>
+    </div>
+  </template>
+
+  <template id="confirm-modal-tpl">
+    <div class="modal-back">
+      <div class="modal">
+        <div class="card-title" id="confirm-title">Bestätigen</div>
+        <div style="margin-top:8px; font-size:14px; color:var(--text);" id="confirm-text">Möchtest du das wirklich tun?</div>
+        <footer>
+          <button class="btn ghost" id="confirm-cancel">Abbrechen</button>
+          <button class="btn" id="confirm-ok">Ja, ausführen</button>
+        </footer>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    const STORAGE_KEY = 'noten_faecher_v1'
+    const SETTINGS_KEY = 'noten_settings_v1'
+
+    function load(){ try{const raw = localStorage.getItem(STORAGE_KEY); return raw? JSON.parse(raw): []}catch(e){return []} }
+    function save(list){ localStorage.setItem(STORAGE_KEY, JSON.stringify(list)) }
+
+    let config = { theme: 'light', tempGrades: true };
+    try {
+      const rawConfig = localStorage.getItem(SETTINGS_KEY);
+      if(rawConfig) config = {...config, ...JSON.parse(rawConfig)};
+    } catch(e){}
+
+    let subjects = load()
+    let currentId = null
+
+    document.documentElement.setAttribute('data-theme', config.theme);
+
+    function formatAvg(a){ if(a==null) return '—'; return a.toFixed(2).replace('.',',') }
+
+    const iconEdit = `<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`;
+    const iconDel = `<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+    const iconEyeOpen = `<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`;
+    const iconEyeClosed = `<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>`;
+
+    function showToast(message) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.innerHTML = `<svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg> ${message}`;
+      container.appendChild(toast);
+      
+      setTimeout(() => toast.classList.add('show'), 50);
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    function showConfirm(title, text, onConfirm) {
+      const tpl = document.getElementById('confirm-modal-tpl').content.cloneNode(true);
+      const back = tpl.querySelector('.modal-back');
+      back.querySelector('#confirm-title').textContent = title;
+      back.querySelector('#confirm-text').textContent = text;
+      
+      back.querySelector('#confirm-cancel').addEventListener('click', () => back.remove());
+      back.querySelector('#confirm-ok').addEventListener('click', () => {
+        onConfirm();
+        back.remove();
+      });
+      document.body.appendChild(back);
+    }
+
+    function renderSubjects(){
+      const container = document.getElementById('subjects')
+      container.innerHTML=''
+      if(subjects.length===0){ document.getElementById('empty-msg').style.display='block' } else { document.getElementById('empty-msg').style.display='none' }
+      subjects.forEach(s=>{
+        const el = document.createElement('div')
+        el.className='subject'
+        el.innerHTML = `
+          <div class="subject-info">
+            <div class="dot" style="background:${s.color}"></div>
+            <div class="meta">
+              <div class="name">${escapeHtml(s.name)}</div>
+              <div class="avg">${s.avg==null? '–' : formatAvg(s.avg)}</div>
+            </div>
+          </div>
+          <div class="controls">
+            <button class="icon-btn edit-btn" title="Bearbeiten">${iconEdit}</button>
+            <button class="icon-btn del-btn" title="Löschen">${iconDel}</button>
+          </div>
+        `
+        
+        el.querySelector('.edit-btn').addEventListener('click', (e) => {
+          openEditModal(s.id);
+          e.stopPropagation();
+        });
+        
+        el.querySelector('.del-btn').addEventListener('click', (e) => {
+          showConfirm('Fach löschen', `Möchtest du das Fach "${s.name}" wirklich löschen?`, () => {
+            removeSubject(s.id);
+          });
+          e.stopPropagation();
+        });
+
+        el.addEventListener('click', () => {
+          openSubject(s.id)
+        });
+
+        container.appendChild(el)
+      })
+    }
+
+    function escapeHtml(str){ return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') }
+
+    function addSubject(name,color){
+      const s = {id:'s'+Date.now(),name:name||'Neues Fach',color:color||'#4f46e5',grades:[],avg:null}
+      subjects.unshift(s); save(subjects); renderSubjects(); openSubject(s.id)
+    }
+    function updateSubject(id,data){
+      const i = subjects.findIndex(x=>x.id===id); if(i===-1) return
+      subjects[i] = {...subjects[i],...data}; save(subjects); renderSubjects(); if(currentId===id) showSubject(subjects[i])
+    }
+    function removeSubject(id){ subjects = subjects.filter(x=>x.id!==id); save(subjects); renderSubjects(); if(currentId===id){ closeSubject() } }
+
+    function openModal(title,name='',color='#4f46e5',onSave){
+      const tpl = document.getElementById('modal-tpl').content.cloneNode(true)
+      const back = tpl.querySelector('.modal-back')
+      back.querySelector('#modal-title').textContent = title
+      const nameIn = back.querySelector('#modal-name')
+      const colorIn = back.querySelector('#modal-color')
+      nameIn.value = name
+      colorIn.value = color
+      back.querySelector('#modal-cancel').addEventListener('click',()=>{ back.remove() })
+      back.querySelector('#modal-save').addEventListener('click',()=>{ onSave(nameIn.value.trim()||'Unbenannt',colorIn.value); back.remove() })
+      document.body.appendChild(back)
+    }
+
+    function openEditModal(id){ const s=subjects.find(x=>x.id===id); if(!s) return; openModal('Fach bearbeiten',s.name,s.color,(name,color)=>{updateSubject(id,{name,color})}) }
+
+    function openSubject(id){
+      const s=subjects.find(x=>x.id===id); if(!s) return; currentId=id;
+      document.getElementById('welcome').style.display='none';
+      document.getElementById('overall-view').style.display='none';
+      document.getElementById('subject-view').style.display='block';
+      showSubject(s)
+    }
+    function showSubject(s){
+      document.getElementById('sub-name').textContent=s.name
+      document.getElementById('sub-name').style.color=s.color
+      document.getElementById('sub-avg').textContent='Durchschnitt: '+(s.avg==null?'–':formatAvg(s.avg))
+      document.getElementById('calc-result').textContent=(s.avg==null?'–':formatAvg(s.avg))
+      
+      renderGradeRows(s)
+      renderSubjects()
+    }
+    function closeSubject(){ currentId=null; document.getElementById('subject-view').style.display='none'; document.getElementById('welcome').style.display='block' }
+
+    function renderGradeRows(s){
+      const container=document.getElementById('grade-rows'); container.innerHTML=''
+      if(!s.grades||s.grades.length===0){ container.innerHTML='<div class="small">Keine Noten. Füge Noten hinzu.</div>'; return }
+      s.grades.forEach((g,idx)=>{
+        const row=document.createElement('div'); 
+        row.className='grade-row' + (g.disabled && config.tempGrades ? ' disabled' : '');
+        
+        const inNum = document.createElement('input'); inNum.type='number'; inNum.step='0.1'; inNum.min='1'; inNum.max='6'; inNum.value=g.value
+        inNum.addEventListener('input',()=>{ s.grades[idx].value=parseFloatOrNull(inNum.value); updateAvgForSubject(s) })
+        inNum.disabled = !!(g.disabled && config.tempGrades);
+        
+        const sel=document.createElement('select'); [0.5,1,1.5,2].forEach(w=>{ const o=document.createElement('option'); o.value=w; o.textContent=w; if(w==g.weight) o.selected=true; sel.appendChild(o) })
+        sel.disabled = !!(g.disabled && config.tempGrades);
+        sel.addEventListener('change',()=>{ s.grades[idx].weight=parseFloat(sel.value); updateAvgForSubject(s) })
+        
+        row.appendChild(inNum); 
+        row.appendChild(sel);
+        
+        if(config.tempGrades) {
+          const toggleBtn=document.createElement('button'); toggleBtn.className='icon-btn';
+          toggleBtn.innerHTML = g.disabled ? iconEyeClosed : iconEyeOpen;
+          toggleBtn.title = g.disabled ? 'Note einschalten' : 'Note ausschalten';
+          toggleBtn.addEventListener('click', () => {
+            s.grades[idx].disabled = !s.grades[idx].disabled;
+            updateAvgForSubject(s);
+          });
+          row.appendChild(toggleBtn);
+        }
+
+        const del=document.createElement('button'); del.className='icon-btn'; del.innerHTML=iconDel; del.title='Notenzeile löschen'
+        del.addEventListener('click',()=>{ s.grades.splice(idx,1); updateAvgForSubject(s) })
+        
+        row.appendChild(del)
+        container.appendChild(row)
+      })
+    }
+
+    function parseFloatOrNull(v){ if(!v) return null; v=String(v).replace(',','.'); const n=parseFloat(v); return isNaN(n)?null:n }
+
+    document.getElementById('btn-add').addEventListener('click',()=>{ openModal('Neues Fach','','#4f46e5',(name,color)=>{ addSubject(name,color) }) })
+    document.getElementById('btn-back').addEventListener('click',()=>{ closeSubject() })
+    document.getElementById('btn-edit-sub').addEventListener('click',()=>{ if(!currentId) return; openEditModal(currentId) })
+    document.getElementById('btn-add-grade').addEventListener('click',()=>{ if(!currentId) return; const s=subjects.find(x=>x.id===currentId); s.grades.push({value:null,weight:1,disabled:false}); updateAvgForSubject(s) })
+    document.getElementById('btn-overall').addEventListener('click',()=>{ openOverallView() })
+    document.getElementById('btn-overall-back').addEventListener('click',()=>{ document.getElementById('overall-view').style.display='none'; document.getElementById('welcome').style.display='block' })
+
+    document.getElementById('btn-settings').addEventListener('click', () => {
+      const tpl = document.getElementById('settings-modal-tpl').content.cloneNode(true);
+      const back = tpl.querySelector('.modal-back');
+      
+      const selectTheme = back.querySelector('#setting-theme');
+      const selectTemp = back.querySelector('#setting-temp-grades');
+      
+      selectTheme.value = config.theme;
+      selectTemp.value = config.tempGrades ? 'true' : 'false';
+      
+      back.querySelector('#settings-save').addEventListener('click', () => {
+        config.theme = selectTheme.value;
+        config.tempGrades = selectTemp.value === 'true';
+        
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(config));
+        document.documentElement.setAttribute('data-theme', config.theme);
+        
+        // FIX: Berechnet sofort alle Noten neu, wenn sich die "Auge"-Regel ändert!
+        recalculateEverythingWithoutAlert();
+        
+        if(currentId) {
+          const s = subjects.find(x => x.id === currentId);
+          if(s) showSubject(s);
+        }
+        back.remove();
+        showToast('Einstellungen gespeichert!');
+      });
+      
+      document.body.appendChild(back);
+    });
+
+    function calcAverage(grades){
+      if(!grades||grades.length===0) return null
+      let num=0,den=0
+      for(const g of grades){ 
+        if(g.disabled && config.tempGrades) continue; 
+        const val=parseFloatOrNull(g.value); 
+        const w=parseFloat(g.weight)||0; 
+        if(val==null) continue; 
+        if(val<1||val>6) continue; 
+        num+=val*w; den+=w 
+      }
+      if(den===0) return null
+      return Math.round((num/den)*100)/100
+    }
+
+    function updateAvgForSubject(s){ const r=calcAverage(s.grades); s.avg=r; save(subjects); renderSubjects(); if(currentId===s.id) showSubject(s) }
+
+    // Hilfsfunktion zur stillen Neuberechnung bei Einstellungsänderungen
+    function recalculateEverythingWithoutAlert(){
+      subjects.forEach(s => {
+        s.avg = calcAverage(s.grades);
+      });
+      save(subjects); renderSubjects();
+      if(document.getElementById('overall-view').style.display === 'block'){ openOverallView(); }
+    }
+
+    document.getElementById('btn-recalculate').addEventListener('click', () => {
+      recalculateEverythingWithoutAlert();
+      showToast('Alle Durchschnitte neu berechnet!');
+    });
+
+    function openOverallView(){
+      document.getElementById('welcome').style.display='none';
+      document.getElementById('subject-view').style.display='none';
+      document.getElementById('overall-view').style.display='block';
+      const tbody=document.querySelector('#overall-table tbody'); tbody.innerHTML=''
+      let total=0,count=0
+      subjects.forEach(s=>{
+        const inactiveCount = (s.grades && config.tempGrades) ? s.grades.filter(g => g.disabled).length : 0;
+        const inactiveText = inactiveCount > 0 ? `<span class="inactive-count">(Inaktiv: ${inactiveCount}x)</span>` : '';
+
+        const tr=document.createElement('tr')
+        tr.innerHTML=`<td>${escapeHtml(s.name)}${inactiveText}</td><td>${s.avg==null?'–':formatAvg(s.avg)}</td>`
+        tbody.appendChild(tr)
+        if(s.avg!=null){ total+=s.avg; count++ }
+      })
+      const overall=(count>0? (total/count):null)
+      document.getElementById('overall-avg').textContent=(overall==null?'–':formatAvg(overall))
+    }
+
+    window.addEventListener('beforeunload',()=>{ save(subjects) })
+
+    // ── Export ─────────────────────────────────
+    document.getElementById('btn-export').addEventListener('click',()=>{
+      const now = new Date()
+      const dateStr = now.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})
+      const timeStr = now.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})
+
+      let txt = ''
+      txt += 'NOTENRECHNER – NOTENLISTE\n'
+      txt += 'Exportiert am ' + dateStr + ' um ' + timeStr + ' Uhr\n'
+      txt += '========================================\n\n'
+
+      if(subjects.length === 0){
+        txt += '(Keine Fächer vorhanden)\n'
+      } else {
+        subjects.forEach((s,si)=>{
+          txt += 'Fach: ' + s.name + '\n'
+          const avgStr = s.avg==null ? '--' : formatAvg(s.avg)
+          txt += 'Durchschnitt: ' + avgStr + '\n'
+          txt += '----------------------------------------\n'
+          if(!s.grades || s.grades.length===0){
+            txt += '  (keine Noten eingetragen)\n'
+          } else {
+            s.grades.forEach((g,i)=>{
+              const val = parseFloatOrNull(g.value)
+              const w   = parseFloat(g.weight)||0
+              const statusStr = (g.disabled && config.tempGrades) ? ' [AUS]' : '';
+              const contrib = (val!=null && val>=1 && val<=6 && !(g.disabled && config.tempGrades)) ? (val*w).toFixed(2) : '--'
+              txt += '  Note ' + (i+1) + ': ' + (val!=null?val:'--') + ' [Gewichtung: ' + w + '] (Beitrag: ' + contrib + statusStr + ')\n'
+            })
+          }
+          txt += '\n'
+        })
+
+        txt += '========================================\n'
+        txt += 'GESAMTUEBERSICHT\n'
+        txt += '========================================\n'
+        subjects.forEach(s=>{
+          const avgStr = s.avg==null ? '--' : formatAvg(s.avg)
+          const inactiveCount = (s.grades && config.tempGrades) ? s.grades.filter(g => g.disabled).length : 0;
+          const inactiveStr = inactiveCount > 0 ? ` (Inaktiv: ${inactiveCount}x)` : '';
+          txt += s.name + inactiveStr + ': ' + avgStr + '\n'
+        })
+        txt += '----------------------------------------\n'
+        let total=0,count=0
+        subjects.forEach(s=>{ if(s.avg!=null){ total+=s.avg; count++ } })
+        const overall = count>0 ? formatAvg(total/count) : '--'
+        txt += 'Gesamtdurchschnitt: ' + overall + '\n\n'
+        txt += '--- JSON-Daten (nicht bearbeiten) ---\n'
+        txt += JSON.stringify(subjects)
+      }
+
+      const blob = new Blob([txt],{type:'text/plain;charset=utf-8'})
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a'); a.href=url
+      a.download = 'Notenliste_' + dateStr.replace(/\./g,'-') + '.txt'
+      a.click(); URL.revokeObjectURL(url)
+      showToast('Notenliste erfolgreich exportiert!');
+    })
+
+    document.getElementById('btn-trigger-import').addEventListener('click', () => {
+      document.getElementById('btn-import').click();
+    });
+
+    // ── Import ─────────────────────────────────
+    document.getElementById('btn-import').addEventListener('change', e=>{
+      const file = e.target.files[0]; if(!file) return
+      const reader = new FileReader()
+      reader.onload = ev=>{
+        const text = ev.target.result
+        try{
+          const marker = '--- JSON-Daten (nicht bearbeiten) ---\n'
+          const idx = text.indexOf(marker)
+          let parsed
+          if(idx !== -1){
+            parsed = JSON.parse(text.slice(idx + marker.length).trim())
+          } else {
+            parsed = JSON.parse(text.trim())
+          }
+          if(!Array.isArray(parsed)) throw new Error('kein Array')
+          
+          showConfirm('Liste ersetzen', 'Möchtest du deine aktuelle Fächerliste wirklich durch die importierte Datei ersetzen?', () => {
+            subjects = parsed; save(subjects); renderSubjects(); closeSubject()
+            showToast(`${subjects.length} Fach/Fächer erfolgreich importiert!`);
+          });
+        } catch(_){
+          showConfirm('Import-Fehler', 'Die Datei konnte nicht importiert werden. Bitte nutze nur gültige Notenrechner-Dateien.', () => {});
+        }
+        e.target.value=''
+      }
+      reader.readAsText(file)
+    })
+
+    renderSubjects()
+  </script>
+</body>
+</html>
